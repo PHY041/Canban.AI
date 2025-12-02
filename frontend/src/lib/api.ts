@@ -75,3 +75,10 @@ export interface ExtractedTask { // Task extracted by AI from text
   status: string
   position: number
 }
+
+// Settings API
+export interface Settings { supabase_url: string; supabase_key: string; openai_api_key: string; saved?: boolean }
+export const settingsApi = {
+  get: () => api.get<Settings>('/settings'),
+  save: (data: Settings) => api.post<Settings>('/settings', data),
+}

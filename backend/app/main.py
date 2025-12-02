@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.api.routes import boards, cards, ai
+from app.api.routes import boards, cards, ai, settings
 from app.core.config import get_settings
 
 settings = get_settings()
@@ -22,6 +22,7 @@ app.add_middleware(
 app.include_router(boards.router, prefix="/api")
 app.include_router(cards.router, prefix="/api")
 app.include_router(ai.router, prefix="/api")
+app.include_router(settings.router, prefix="/api")
 
 
 @app.get("/")

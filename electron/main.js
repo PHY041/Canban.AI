@@ -36,7 +36,8 @@ async function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1400, height: 900, minWidth: 800, minHeight: 600,
     webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false },
-    titleBarStyle: 'hiddenInset', trafficLightPosition: { x: 15, y: 15 },
+    titleBarStyle: 'default', // Use native title bar for reliable dragging
+    title: 'CanBan.AI',
     icon: path.join(__dirname, '../assets/icon.png'),
   });
   if (isDev) mainWindow.loadURL('http://localhost:5173');

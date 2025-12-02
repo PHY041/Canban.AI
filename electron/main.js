@@ -1,69 +1,48 @@
-const { app, BrowserWindow, dialog } = require('electron'); // Electron core modules
+const { app, BrowserWindow } = require('electron');
 const path = require('path');
 const { spawn } = require('child_process');
 const fs = require('fs');
-const http = require('http');
 
 let mainWindow, backendProcess;
 const isDev = !app.isPackaged;
-const BACKEND_PORT = 51723; // Random high port to avoid conflicts
+const BACKEND_PORT = 51723;
 
-function getBackendPath() { // Get path to Python backend executable
+function getBackendPath() {
   if (isDev) return null;
-  const resourcesPath = process.resourcesPath;
   const ext = process.platform === 'win32' ? '.exe' : '';
-  return path.join(resourcesPath, 'backend', `canban-backend${ext}`);
+  return path.join(process.resourcesPath, 'backend', `canban-backend${ext}`);
 }
 
-function waitForBackend(maxAttempts = 30) { // Poll /health until ready (max 30 seconds)
-  return new Promise((resolve) => {
-    let attempts = 0;
-    const check = () => {
-      attempts++;
-      const req = http.get(`http://localhost:${BACKEND_PORT}/health`, (res) => {
-        if (res.statusCode === 200) { console.log('Backend ready!'); resolve(true); }
-        else if (attempts < maxAttempts) setTimeout(check, 1000);
-        else resolve(false);
-      });
-      req.on('error', () => { if (attempts < maxAttempts) setTimeout(check, 1000); else resolve(false); });
-      req.end();
-    };
-    setTimeout(check, 1000); // First check after 1 second
-  });
-}
-
-async function startBackend() { // Spawn bundled Python backend and wait until ready
-  if (isDev) { console.log('Dev mode: expecting backend at localhost:8000'); return true; }
+function startBackend() { // Start backend in background (don't wait)
+  if (isDev) { console.log('Dev mode: start backend manually'); return; }
   const backendPath = getBackendPath();
-  if (!fs.existsSync(backendPath)) { dialog.showErrorBox('Error', `Backend not found: ${backendPath}`); return false; }
-  console.log('Starting backend...');
-  backendProcess = spawn(backendPath, [], { env: { ...process.env, PORT: String(BACKEND_PORT) }, stdio: ['ignore', 'pipe', 'pipe'] });
-  backendProcess.stdout.on('data', (data) => console.log(`Backend: ${data}`));
-  backendProcess.stderr.on('data', (data) => console.error(`Backend Error: ${data}`));
-  backendProcess.on('error', (err) => console.error('Failed to start backend:', err));
-  return await waitForBackend();
+  if (!fs.existsSync(backendPath)) { console.error('Backend not found:', backendPath); return; }
+  console.log('Starting backend:', backendPath);
+  backendProcess = spawn(backendPath, [], { stdio: ['ignore', 'pipe', 'pipe'] });
+  backendProcess.stdout.on('data', (d) => console.log('Backend:', d.toString()));
+  backendProcess.stderr.on('data', (d) => console.log('Backend:', d.toString()));
+  backendProcess.on('error', (e) => console.error('Backend error:', e));
+  backendProcess.on('exit', (code) => console.log('Backend exited:', code));
 }
 
 function stopBackend() { if (backendProcess) { backendProcess.kill(); backendProcess = null; } }
 
-async function createWindow() {
-  const backendStarted = await startBackend();
-  if (!backendStarted && !isDev) { app.quit(); return; }
+function createWindow() {
+  startBackend(); // Start backend but don't wait
   mainWindow = new BrowserWindow({
     width: 1400, height: 900, minWidth: 800, minHeight: 600,
     webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false },
-    titleBarStyle: 'default', // Use native title bar for reliable dragging
     title: 'CanBan.AI',
     icon: path.join(__dirname, '../assets/icon.png'),
+    show: false, // Don't show until ready
   });
+  mainWindow.once('ready-to-show', () => mainWindow.show()); // Show when content loaded
   if (isDev) mainWindow.loadURL('http://localhost:5173');
   else mainWindow.loadFile(path.join(__dirname, '../frontend/dist/index.html'));
   mainWindow.on('closed', () => { mainWindow = null; });
-  if (isDev) mainWindow.webContents.openDevTools();
 }
 
 app.whenReady().then(createWindow);
 app.on('window-all-closed', () => { stopBackend(); if (process.platform !== 'darwin') app.quit(); });
 app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
 app.on('before-quit', stopBackend);
-

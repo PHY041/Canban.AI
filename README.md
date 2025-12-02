@@ -5,192 +5,126 @@ AI-powered Kanban board with automatic task prioritization, built for managing m
 ## 🖥️ Desktop App (Recommended)
 
 Download the latest release for your platform:
-- **macOS**: `CanBan.AI-x.x.x.dmg`
-- **Windows**: `CanBan.AI-Setup-x.x.x.exe`
-- **Linux**: `CanBan.AI-x.x.x.AppImage`
+- **macOS (Apple Silicon)**: `CanBan.AI-x.x.x-arm64.dmg`
+- **Windows**: `CanBan.AI-Setup-x.x.x.exe` *(coming soon)*
+- **Linux**: `CanBan.AI-x.x.x.AppImage` *(coming soon)*
 
-Or build from source (see [Build Desktop App](#build-desktop-app) section).
+## 🚀 First-Time Setup (5 minutes)
 
-### First-Time Setup (5 minutes)
+### Step 1: Get Your API Keys (all free!)
 
-After installing, you need to configure 3 API keys. Here's how to get them:
+You need 3 things. Here's exactly where to get them:
 
-#### 1️⃣ Get Supabase URL & Key (Free)
-1. Go to [supabase.com](https://supabase.com) → Sign up (free)
-2. Click "New Project" → name it anything (e.g., "canban")
-3. Wait ~2 min for setup, then go to **Settings** (gear icon) → **API**
-4. Copy:
-   - **Project URL**: `https://xxxxx.supabase.co`
-   - **anon public** key: `eyJhbGci...` (the long one)
+| What | Where to Get | Time |
+|------|-------------|------|
+| **Supabase URL** | [supabase.com](https://supabase.com) → New Project → Settings → API | 2 min |
+| **Supabase Key** | Same page, copy "anon public" key | - |
+| **OpenAI Key** | [platform.openai.com/api-keys](https://platform.openai.com/api-keys) → Create new key | 1 min |
 
-#### 2️⃣ Set Up Database Tables
-1. In Supabase, go to **SQL Editor** (left sidebar)
-2. Paste the contents of `backend/supabase_schema.sql`
-3. Click **Run** ✓
+<details>
+<summary>📖 Detailed instructions (click to expand)</summary>
 
-#### 3️⃣ Get OpenAI API Key (~$5 credit free)
+#### Get Supabase URL & Key
+1. Go to [supabase.com](https://supabase.com) → Sign up (free, no credit card)
+2. Click **"New Project"** → name it "canban" → set a password → Create
+3. Wait ~2 minutes for setup
+4. Click **Settings** (gear icon, bottom left) → **API**
+5. Copy these two values:
+   - **Project URL**: looks like `https://abcdefg.supabase.co`
+   - **anon public** key: the long string starting with `eyJ...`
+
+#### Get OpenAI API Key
 1. Go to [platform.openai.com](https://platform.openai.com) → Sign up
-2. Go to **API Keys** → "Create new secret key"
-3. Copy the key starting with `sk-...`
+2. Click **API Keys** (left sidebar) → **"Create new secret key"**
+3. Copy the key (starts with `sk-...`)
+4. Note: New accounts get ~$5 free credits
 
-#### 4️⃣ Save Your Keys
-Create a file at `~/.canban-ai/.env`:
-```bash
-mkdir -p ~/.canban-ai
-nano ~/.canban-ai/.env
-```
-Add these lines (replace with your keys):
-```
-SUPABASE_URL=https://your-project.supabase.co
-SUPABASE_KEY=your-anon-key
-OPENAI_API_KEY=sk-your-openai-key
-```
-Save with `Ctrl+O`, `Enter`, `Ctrl+X`
+</details>
 
-🎉 **Done! Open CanBan.AI and start managing tasks!**
+### Step 2: Set Up Database
 
-## Features
+1. In Supabase, go to **SQL Editor** (left sidebar)
+2. Copy everything from [`backend/supabase_schema.sql`](backend/supabase_schema.sql)
+3. Paste into SQL Editor → Click **Run**
+4. You should see "Success" ✓
 
-- **AI Priority Engine**: Automatically prioritizes tasks based on deadlines, complexity, and patterns
-- **AI Text Extraction**: Paste any text (emails, syllabus, meeting notes) and AI extracts tasks automatically
-- **Daily Briefing**: AI-generated summary of your priorities and suggestions
-- **Drag & Drop**: Intuitive card movement between columns
-- **Multi-Board Support**: Manage multiple projects/modules in one place
-- **Board Management**: Add, edit, and delete boards with custom colors
-- **Smart Suggestions**: Get AI-powered recommendations for any task
+### Step 3: Enter Keys in App
 
-## Tech Stack
+1. **Open CanBan.AI**
+2. Click the **⚙️ Settings** button (top right)
+3. Paste your 3 keys
+4. Click **Save Settings**
+5. **Restart the app**
 
-- **Frontend**: React 18, TypeScript, Tailwind CSS, dnd-kit
-- **Backend**: FastAPI (Python), Supabase
-- **AI**: OpenAI GPT-4o-mini
+🎉 **Done! Start managing your tasks with AI!**
 
-## Quick Start
+---
 
-### 1. Set up Supabase
+## ✨ Features
 
-1. Create a new project at [supabase.com](https://supabase.com)
-2. Go to SQL Editor and run the schema from `backend/supabase_schema.sql`
-3. Copy your project URL and anon key from Settings > API
+| Feature | Description |
+|---------|-------------|
+| **AI Priority** | Click "AI Prioritize" → AI analyzes deadlines & complexity → auto-ranks tasks |
+| **Paste & Extract** | Paste emails, syllabi, meeting notes → AI extracts tasks automatically |
+| **Daily Briefing** | AI summary of your priorities and what to focus on |
+| **Multi-Board** | Separate boards for Work, School, Projects, etc. |
+| **Drag & Drop** | Move cards between To Do / In Progress / Done |
 
-### 2. Configure Environment
+---
 
-Backend:
-```bash
-cd backend
-cp .env.example .env
-# Edit .env with your credentials:
-# SUPABASE_URL=https://your-project.supabase.co
-# SUPABASE_KEY=your-anon-key
-# OPENAI_API_KEY=your-openai-key
-```
+## 🛠️ For Developers
 
-Frontend:
-```bash
-cd frontend
-cp .env.example .env
-# Edit if needed (default: http://localhost:8000)
-```
-
-### 3. Run Backend
+### Run from Source
 
 ```bash
-cd backend
-source venv/bin/activate
-uvicorn app.main:app --reload
-```
+# Clone
+git clone https://github.com/PHY041/Canban.AI.git
+cd Canban.AI
 
-API will be available at http://localhost:8000
-
-### 4. Run Frontend
-
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-App will be available at http://localhost:5173 (uses this port to avoid conflicts with common ports like 3000)
-
-## API Endpoints
-
-### Boards
-- `GET /api/boards` - List all boards
-- `POST /api/boards` - Create board
-- `PUT /api/boards/:id` - Update board
-- `DELETE /api/boards/:id` - Delete board
-
-### Cards
-- `GET /api/cards/board/:boardId` - List cards in board
-- `POST /api/cards` - Create card
-- `PUT /api/cards/:id` - Update card
-- `DELETE /api/cards/:id` - Delete card
-- `POST /api/cards/:id/move` - Move card
-
-### AI
-- `POST /api/ai/prioritize` - AI prioritization
-- `POST /api/ai/suggest` - Get suggestions for card
-- `GET /api/ai/daily-briefing` - Daily briefing
-- `POST /api/ai/extract-tasks` - Extract tasks from pasted text
-- `POST /api/ai/create-extracted-tasks` - Create cards from extracted tasks
-
-## AI Features
-
-### Paste & Extract
-Click "Paste & Extract" button, paste any text (emails, syllabus, meeting notes), and AI will:
-- Extract actionable tasks with titles
-- Detect deadlines from natural language ("next Tuesday", "Dec 15")
-- Estimate priority based on urgency words
-- Suggest time estimates and tags
-- Preview before creating cards
-
-## Default Boards
-
-The schema creates these boards by default:
-- Work (canmarket.ai)
-- Research - Stanford
-- Research - Mobile/Android
-- Module 1-6 (University courses)
-
-## Build Desktop App
-
-### Prerequisites
-- Node.js 18+
-- Python 3.9+
-- PyInstaller (`pip install pyinstaller`)
-
-### Development Mode
-```bash
-# Install dependencies
+# Install
 npm install
 cd backend && pip install -r requirements.txt && cd ..
 
-# Option 1: Quick start script
+# Run (opens Electron app with hot-reload)
 ./start.sh desktop
-
-# Option 2: npm command
-npm run dev:electron
 ```
 
-### Build for Distribution
+### Build Desktop App
+
 ```bash
-# Quick build script
+# Install PyInstaller first
+pip install pyinstaller
+
+# Build for your platform
 ./start.sh build
 
-# Or build for specific platform
-npm run dist:mac    # macOS .dmg
-npm run dist:win    # Windows .exe
-npm run dist:linux  # Linux .AppImage
+# Output: release/CanBan.AI-x.x.x.dmg
 ```
 
-Built apps will be in the `release/` folder. Share the `.dmg`/`.exe` file via email or upload to GitHub Releases.
+### Tech Stack
+- **Frontend**: React 18, TypeScript, Tailwind CSS, dnd-kit
+- **Backend**: FastAPI (Python), Supabase
+- **AI**: OpenAI GPT-4o-mini
+- **Desktop**: Electron
 
-### App Icons
-Place your icons in `assets/`:
-- `icon.png` (512x512, for Linux)
-- `icon.icns` (for macOS) - generate at https://cloudconvert.com/png-to-icns
-- `icon.ico` (for Windows) - generate at https://cloudconvert.com/png-to-ico
+---
 
-## License
+## 📡 API Endpoints
+
+| Endpoint | Description |
+|----------|-------------|
+| `GET /api/boards` | List all boards |
+| `POST /api/boards` | Create board |
+| `GET /api/cards/board/:id` | List cards in board |
+| `POST /api/cards` | Create card |
+| `POST /api/ai/prioritize` | AI prioritization |
+| `POST /api/ai/extract-tasks` | Extract tasks from text |
+| `GET /api/ai/daily-briefing` | Daily AI briefing |
+| `GET /api/settings` | Load saved settings |
+| `POST /api/settings` | Save settings to ~/.canban-ai/.env |
+
+---
+
+## 📄 License
 
 MIT

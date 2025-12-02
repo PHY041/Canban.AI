@@ -9,6 +9,15 @@ Download the latest release for your platform:
 - **Windows**: `CanBan.AI-Setup-x.x.x.exe` *(coming soon)*
 - **Linux**: `CanBan.AI-x.x.x.AppImage` *(coming soon)*
 
+### ⚠️ macOS Users: First Launch
+macOS may block the app because it's unsigned. Fix:
+```bash
+# Option 1: Right-click the app → Open → Open (first time only)
+
+# Option 2: Remove quarantine
+xattr -cr /Applications/CanBan.AI.app
+```
+
 ## 🚀 First-Time Setup (5 minutes)
 
 ### Step 1: Get Your API Keys (all free!)
@@ -102,8 +111,8 @@ pip install pyinstaller
 ```
 
 ### Tech Stack
-- **Frontend**: React 18, TypeScript, Tailwind CSS, dnd-kit
-- **Backend**: FastAPI (Python), Supabase
+- **Frontend**: React 18, TypeScript, Tailwind CSS, dnd-kit (port 5173)
+- **Backend**: FastAPI (Python), Supabase (port 51723)
 - **AI**: OpenAI GPT-4o-mini
 - **Desktop**: Electron
 

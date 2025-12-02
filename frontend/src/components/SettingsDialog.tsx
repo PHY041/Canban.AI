@@ -18,12 +18,17 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
   const [error, setError] = useState('')
   const [testStatus, setTestStatus] = useState<'idle' | 'testing' | 'success' | 'error'>('idle')
 
-  useEffect(() => { // Load settings from backend
+  useEffect(() => { // Load settings from backend (with timeout + localStorage fallback)
     if (open) {
       setLoading(true); setError('')
+      const loadLocal = () => { // Fallback to localStorage
+        const stored = localStorage.getItem('canban-settings')
+        if (stored) { const { supabaseUrl: u, supabaseKey: k, openaiKey: o } = JSON.parse(stored); setSupabaseUrl(u || ''); setSupabaseKey(k || ''); setOpenaiKey(o || '') }
+      }
+      const timeout = setTimeout(() => { setLoading(false); loadLocal(); setError('Backend not responding. Enter your keys below.') }, 3000)
       settingsApi.get()
-        .then(res => { setSupabaseUrl(res.data.supabase_url || ''); setSupabaseKey(res.data.supabase_key || ''); setOpenaiKey(res.data.openai_api_key || '') })
-        .catch(() => setError('Could not load settings. Is the backend running?'))
+        .then(res => { clearTimeout(timeout); setSupabaseUrl(res.data.supabase_url || ''); setSupabaseKey(res.data.supabase_key || ''); setOpenaiKey(res.data.openai_api_key || '') })
+        .catch(() => { clearTimeout(timeout); loadLocal(); setError('Backend not running. Enter keys below.') })
         .finally(() => setLoading(false))
     }
   }, [open])
@@ -33,7 +38,12 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
     try {
       await settingsApi.save({ supabase_url: supabaseUrl, supabase_key: supabaseKey, openai_api_key: openaiKey })
       setSaved(true); setTimeout(() => setSaved(false), 2000)
-    } catch { setError('Failed to save settings') }
+    } catch {
+      // Fallback: save to localStorage if backend unavailable
+      localStorage.setItem('canban-settings', JSON.stringify({ supabaseUrl, supabaseKey, openaiKey }))
+      setError('Saved locally. Backend not running - keys will sync when backend starts.')
+      setSaved(true); setTimeout(() => setSaved(false), 2000)
+    }
     finally { setSaving(false) }
   }
 

@@ -11,7 +11,7 @@ import {
   type DragOverEvent,
 } from '@dnd-kit/core'
 import { arrayMove } from '@dnd-kit/sortable'
-import { Sparkles, RefreshCw, ClipboardPaste, Settings } from 'lucide-react'
+import { Sparkles, RefreshCw, ClipboardPaste, Settings, Cog } from 'lucide-react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 
 import { Button } from '@/components/ui/button'
@@ -22,6 +22,7 @@ import { BoardSelector, ALL_BOARDS_ID } from '@/components/BoardSelector'
 import { DailyBriefing } from '@/components/DailyBriefing'
 import { ExtractTasksDialog } from '@/components/ExtractTasksDialog'
 import { BoardManagement } from '@/components/BoardManagement'
+import { SettingsDialog } from '@/components/SettingsDialog'
 import { boardsApi, cardsApi, aiApi } from '@/lib/api'
 import { useKanbanStore } from '@/store/kanban'
 import type { Card, CardStatus, DailyBriefing as DailyBriefingType } from '@/types'
@@ -52,6 +53,7 @@ export function KanbanBoard() {
   const [briefingLoading, setBriefingLoading] = useState(false)
   const [extractDialogOpen, setExtractDialogOpen] = useState(false)
   const [boardManagementOpen, setBoardManagementOpen] = useState(false)
+  const [settingsOpen, setSettingsOpen] = useState(false)
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -306,6 +308,9 @@ export function KanbanBoard() {
           <Button variant="outline" size="sm" onClick={() => refetchCards()}>
             <RefreshCw className="h-4 w-4" />
           </Button>
+          <Button variant="outline" size="sm" onClick={() => setSettingsOpen(true)}>
+            <Cog className="h-4 w-4" />
+          </Button>
         </div>
       </div>
 
@@ -396,6 +401,9 @@ export function KanbanBoard() {
         onDeleteBoard={(id) => deleteBoardMutation.mutate(id)}
         onRestoreBoard={(id) => restoreBoardMutation.mutate(id)}
       />
+
+      {/* Settings Dialog */}
+      <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
     </div>
   )
 }

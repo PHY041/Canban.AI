@@ -21,7 +21,7 @@ const priorityVariants: Record<number, 'priority1' | 'priority2' | 'priority3' |
   1: 'priority1', 2: 'priority2', 3: 'priority3', 4: 'priority4', 5: 'priority5',
 }
 
-export function ExtractTasksDialog({ open, onOpenChange, boardId, boardName, onTasksCreated, boards = [], isAllBoards = false }: ExtractTasksDialogProps) {
+export function ExtractTasksDialog({ open, onOpenChange, boardId, boardName: _boardName, onTasksCreated, boards = [], isAllBoards = false }: ExtractTasksDialogProps) {
   const [text, setText] = useState('')
   const [extractedTasks, setExtractedTasks] = useState<ExtractedTask[]>([])
   const [summary, setSummary] = useState('')

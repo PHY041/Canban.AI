@@ -16,6 +16,8 @@ __pycache__/
 frontend/dist/
 build/
 *.egg-info/
+dist-backend/
+release/
 
 # IDE
 .idea/

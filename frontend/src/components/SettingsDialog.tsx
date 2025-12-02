@@ -50,7 +50,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
   const handleTest = async () => {
     setTestStatus('testing')
     try {
-      const res = await fetch('http://localhost:8000/health')
+      const res = await fetch('http://localhost:51723/health')
       setTestStatus(res.ok ? 'success' : 'error')
     } catch { setTestStatus('error') }
     setTimeout(() => setTestStatus('idle'), 3000)

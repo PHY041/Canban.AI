@@ -39,14 +39,14 @@ if [ ! -f "backend/.env" ]; then
 fi
 
 # Kill any existing processes on our ports (using 5173 to avoid conflicts with common ports like 3000)
-lsof -ti:8000 | xargs kill -9 2>/dev/null || true
+lsof -ti:51723 | xargs kill -9 2>/dev/null || true
 lsof -ti:5173 | xargs kill -9 2>/dev/null || true
 
 # Start backend
 echo "📦 Starting backend..."
 cd "$SCRIPT_DIR/backend"
 source venv/bin/activate
-uvicorn app.main:app --reload --port 8000 &
+uvicorn app.main:app --reload --port 51723 &
 BACKEND_PID=$!
 
 # Start frontend (port 5173 - Vite default, avoids conflict with common dev ports)
@@ -61,8 +61,8 @@ echo "✅ =========================================="
 echo "   Kanban AI is running!"
 echo ""
 echo "   Frontend: http://localhost:5173"
-echo "   Backend:  http://localhost:8000"
-echo "   API Docs: http://localhost:8000/docs"
+echo "   Backend:  http://localhost:51723"
+echo "   API Docs: http://localhost:51723/docs"
 echo "============================================"
 echo ""
 echo "Press Ctrl+C to stop"

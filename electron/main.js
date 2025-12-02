@@ -6,7 +6,7 @@ const http = require('http');
 
 let mainWindow, backendProcess;
 const isDev = !app.isPackaged;
-const BACKEND_PORT = 8000;
+const BACKEND_PORT = 51723; // Random high port to avoid conflicts
 
 function getBackendPath() { // Get path to Python backend executable
   if (isDev) return null;

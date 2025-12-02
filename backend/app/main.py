@@ -6,7 +6,7 @@ from app.core.config import get_settings
 settings = get_settings()
 
 app = FastAPI(
-    title="Canban.AI",
+    title="CanBan.AI",
     description="AI-Powered Kanban System with automatic task prioritization",
     version="1.0.0",
 )
@@ -28,7 +28,7 @@ app.include_router(ai.router, prefix="/api")
 
 @app.get("/")
 async def root():
-    return {"message": "Canban.AI API", "version": "1.0.0"}
+    return {"message": "CanBan.AI API", "version": "1.0.0"}
 
 
 @app.get("/health")

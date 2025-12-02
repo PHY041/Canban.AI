@@ -1,4 +1,4 @@
-# Canban.AI
+# CanBan.AI
 
 AI-powered Kanban board with automatic task prioritization, built for managing multiple workstreams efficiently.
 

@@ -12,7 +12,7 @@ class Settings(BaseSettings):
 
     # Application
     debug: bool = True
-    app_name: str = "Canban.AI"
+    app_name: str = "CanBan.AI"
 
     class Config:
         env_file = ".env"

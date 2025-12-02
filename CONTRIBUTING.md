@@ -1,4 +1,4 @@
-# Contributing to Kanban AI
+# Contributing to CanBan.AI
 
 Thank you for your interest in contributing to Kanban AI! 🎉
 

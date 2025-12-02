@@ -287,7 +287,7 @@ export function KanbanBoard() {
       {/* Header Row: Title + Action Buttons */}
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h1 className="text-2xl font-bold">Canban.AI</h1>
+          <h1 className="text-2xl font-bold">CanBan.AI</h1>
           <p className="text-muted-foreground text-sm">AI-powered task management with automatic prioritization</p>
         </div>
         <div className="flex items-center gap-2">

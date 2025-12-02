@@ -40,6 +40,10 @@ body {
   font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
+/* Electron window drag region */
+.electron-drag { -webkit-app-region: drag; }
+.electron-no-drag { -webkit-app-region: no-drag; }
+
 /* Custom scrollbar */
 ::-webkit-scrollbar {
   width: 8px;

@@ -286,13 +286,13 @@ export function KanbanBoard() {
 
   return (
     <div className="flex flex-col h-full">
-      {/* Header Row: Title + Action Buttons */}
-      <div className="flex items-center justify-between mb-4">
+      {/* Header Row: Title + Action Buttons (draggable for Electron) */}
+      <div className="flex items-center justify-between mb-4 electron-drag pt-2">
         <div>
           <h1 className="text-2xl font-bold">CanBan.AI</h1>
           <p className="text-muted-foreground text-sm">AI-powered task management with automatic prioritization</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 electron-no-drag">
           <Button variant="outline" size="sm" onClick={() => setBoardManagementOpen(true)}>
             <Settings className="h-4 w-4 mr-1" />
             Boards

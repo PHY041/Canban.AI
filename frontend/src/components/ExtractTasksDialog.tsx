@@ -87,7 +87,7 @@ export function ExtractTasksDialog({ open, onOpenChange, boardId, boardName: _bo
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent onClose={handleClose} className="sm:max-w-[600px] max-h-[80vh] overflow-hidden flex flex-col">
+      <DialogContent onClose={handleClose} className="sm:max-w-[600px] max-h-[80vh] flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Sparkles className="h-5 w-5 text-primary" />
@@ -97,7 +97,7 @@ export function ExtractTasksDialog({ open, onOpenChange, boardId, boardName: _bo
 
         {step === 'input' ? (
           <>
-            <div className="flex-1 py-4">
+            <div className="flex-1 py-4 overflow-y-auto min-h-0">
               <p className="text-sm text-muted-foreground mb-3">
                 Paste any text (emails, notes, syllabus, meeting notes) and AI will extract actionable tasks.
               </p>

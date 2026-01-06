@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import {
   DndContext,
   DragOverlay,
@@ -11,7 +11,7 @@ import {
   type DragOverEvent,
 } from '@dnd-kit/core'
 import { arrayMove } from '@dnd-kit/sortable'
-import { Sparkles, RefreshCw, ClipboardPaste, Settings, Cog } from 'lucide-react'
+import { Sparkles, RefreshCw, Settings, Cog, CheckCircle2, LayoutGrid, CalendarDays, MoreHorizontal, Wand2 } from 'lucide-react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 
 import { Button } from '@/components/ui/button'
@@ -23,15 +23,19 @@ import { DailyBriefing } from '@/components/DailyBriefing'
 import { ExtractTasksDialog } from '@/components/ExtractTasksDialog'
 import { BoardManagement } from '@/components/BoardManagement'
 import { SettingsDialog } from '@/components/SettingsDialog'
-import { boardsApi, cardsApi, aiApi } from '@/lib/api'
+import { DoneArchive } from '@/components/DoneArchive'
+import { TimelineView } from '@/components/TimelineView'
+import { AgentPanel } from '@/components/AgentPanel'
+import { boardsApi, cardsApi, aiApi, agentsApi } from '@/lib/api'
 import { useKanbanStore } from '@/store/kanban'
-import type { Card, CardStatus, DailyBriefing as DailyBriefingType } from '@/types'
+import type { Card, CardStatus, DailyBriefing as DailyBriefingType, AgentSession } from '@/types'
 
 const COLUMNS: { status: CardStatus; title: string }[] = [
   { status: 'todo', title: 'To Do' },
   { status: 'in_progress', title: 'In Progress' },
-  { status: 'done', title: 'Done' },
 ]
+
+type ViewMode = 'kanban' | 'timeline'
 
 export function KanbanBoard() {
   const queryClient = useQueryClient()
@@ -54,6 +58,26 @@ export function KanbanBoard() {
   const [extractDialogOpen, setExtractDialogOpen] = useState(false)
   const [boardManagementOpen, setBoardManagementOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [doneArchiveOpen, setDoneArchiveOpen] = useState(false)
+  const [viewMode, setViewMode] = useState<ViewMode>('kanban')
+  const [moreMenuOpen, setMoreMenuOpen] = useState(false)
+  const moreMenuRef = useRef<HTMLDivElement>(null)
+  const [runningAgentCardIds, setRunningAgentCardIds] = useState<Set<string>>(new Set())
+  const [agentPanelCard, setAgentPanelCard] = useState<Card | null>(null)
+  const [agentSession, setAgentSession] = useState<AgentSession | null>(null)
+
+  // Close more menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (moreMenuRef.current && !moreMenuRef.current.contains(event.target as Node)) {
+        setMoreMenuOpen(false)
+      }
+    }
+    if (moreMenuOpen) {
+      document.addEventListener('mousedown', handleClickOutside)
+      return () => document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [moreMenuOpen])
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -117,6 +141,9 @@ export function KanbanBoard() {
   const moveCardMutation = useMutation({
     mutationFn: ({ id, data }: { id: string; data: Parameters<typeof cardsApi.move>[1] }) =>
       cardsApi.move(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['cards', selectedBoardId] })
+    },
   })
 
   // Board mutations
@@ -165,6 +192,89 @@ export function KanbanBoard() {
       console.error('Failed to get suggestions:', error)
       alert('Failed to get AI suggestions. Make sure your OpenAI API key is configured.')
     }
+  }
+
+  const handleRunAgent = async (cardId: string) => {
+    const card = cards.find(c => c.id === cardId)
+    if (!card) return
+
+    try {
+      // Add to running set
+      setRunningAgentCardIds(prev => new Set([...prev, cardId]))
+
+      // Open the agent panel
+      setAgentPanelCard(card)
+
+      // Start the agent
+      const response = await agentsApi.start(cardId)
+      setAgentSession(response.data)
+
+      // Poll for completion to update running state
+      const pollInterval = setInterval(async () => {
+        try {
+          const statusResponse = await agentsApi.getSession(response.data.id)
+          setAgentSession(statusResponse.data)
+
+          if (['completed', 'failed', 'cancelled'].includes(statusResponse.data.status)) {
+            clearInterval(pollInterval)
+            setRunningAgentCardIds(prev => {
+              const next = new Set(prev)
+              next.delete(cardId)
+              return next
+            })
+          }
+        } catch (e) {
+          console.error('Failed to poll agent status:', e)
+        }
+      }, 2000)
+
+    } catch (error: unknown) {
+      console.error('Failed to start agent:', error)
+      setRunningAgentCardIds(prev => {
+        const next = new Set(prev)
+        next.delete(cardId)
+        return next
+      })
+      // Extract error message from axios response or fallback to generic
+      let errorMessage = 'Unknown error'
+      if (error && typeof error === 'object' && 'response' in error) {
+        const axiosError = error as { response?: { data?: { detail?: string } } }
+        errorMessage = axiosError.response?.data?.detail || 'Request failed'
+      } else if (error instanceof Error) {
+        errorMessage = error.message
+      }
+      // Show error in panel if open
+      if (agentPanelCard?.id === cardId) {
+        setAgentSession({
+          id: '',
+          card_id: cardId,
+          status: 'failed',
+          output_lines: [],
+          error: errorMessage,
+        })
+      }
+    }
+  }
+
+  const handleCancelAgent = async (sessionId: string) => {
+    try {
+      await agentsApi.cancel(sessionId)
+      setAgentSession(prev => prev ? { ...prev, status: 'cancelled' } : null)
+      if (agentPanelCard) {
+        setRunningAgentCardIds(prev => {
+          const next = new Set(prev)
+          next.delete(agentPanelCard.id)
+          return next
+        })
+      }
+    } catch (e) {
+      console.error('Failed to cancel agent:', e)
+    }
+  }
+
+  const handleCloseAgentPanel = () => {
+    setAgentPanelCard(null)
+    setAgentSession(null)
   }
 
   const getCardsByStatus = (status: CardStatus) => {
@@ -280,93 +390,206 @@ export function KanbanBoard() {
     }
   }
 
+  const handleMarkDone = (cardId: string) => {
+    moveCardMutation.mutate({
+      id: cardId,
+      data: { status: 'done', position: 0 },
+    })
+    // Optimistic update
+    updateCard(cardId, { status: 'done' })
+  }
+
+  const handleRestoreToTodo = (cardId: string) => {
+    moveCardMutation.mutate({
+      id: cardId,
+      data: { status: 'todo', position: 0 },
+    })
+    // Optimistic update
+    updateCard(cardId, { status: 'todo' })
+  }
+
+  const doneCards = cards.filter(c => c.status === 'done')
+
   const isAllBoards = selectedBoardId === ALL_BOARDS_ID
   const currentBoardName = isAllBoards ? 'All Boards' : boards.find(b => b.id === selectedBoardId)?.name || 'Board'
   const boardsMap = Object.fromEntries(boards.map(b => [b.id, b])) // For showing board name on cards
 
   return (
-    <div className="flex flex-col h-full">
-      {/* Header Row: Title + Action Buttons (draggable for Electron) */}
-      <div className="flex items-center justify-between mb-4 electron-drag pt-2">
-        <div>
-          <h1 className="text-2xl font-bold">CanBan.AI</h1>
-          <p className="text-muted-foreground text-sm">AI-powered task management with automatic prioritization</p>
+    <div className="flex h-full">
+      {/* Main content area */}
+      <div className={`flex flex-col flex-1 ${agentPanelCard ? 'mr-[400px]' : ''}`}>
+      {/* Row 1: Title + View Toggle + Action Buttons */}
+      <div className="flex items-center gap-4 mb-3 electron-drag pt-2">
+        <h1 className="text-2xl font-bold shrink-0">CanBan.AI</h1>
+
+        {/* View Toggle */}
+        <div className="flex items-center bg-secondary rounded-lg p-1 electron-no-drag">
+          <button
+            onClick={() => setViewMode('kanban')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+              viewMode === 'kanban'
+                ? 'bg-background text-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            <LayoutGrid className="h-4 w-4" />
+            Kanban
+          </button>
+          <button
+            onClick={() => setViewMode('timeline')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+              viewMode === 'timeline'
+                ? 'bg-background text-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            <CalendarDays className="h-4 w-4" />
+            Timeline
+          </button>
         </div>
+
+        {/* Separator */}
+        <div className="h-6 w-px bg-border electron-no-drag" />
+
+        {/* Action Buttons - Primary AI actions + More menu */}
         <div className="flex items-center gap-2 electron-no-drag">
-          <Button variant="outline" size="sm" onClick={() => setBoardManagementOpen(true)}>
-            <Settings className="h-4 w-4 mr-1" />
-            Boards
-          </Button>
           <Button variant="outline" size="sm" onClick={() => setExtractDialogOpen(true)}>
-            <ClipboardPaste className="h-4 w-4 mr-1" />
-            Paste & Extract
+            <Wand2 className="h-4 w-4 mr-1" />
+            AI Extract
           </Button>
           <Button variant="outline" size="sm" onClick={() => prioritizeMutation.mutate()} disabled={prioritizeMutation.isPending}>
             <Sparkles className="h-4 w-4 mr-1" />
             {prioritizeMutation.isPending ? 'Prioritizing...' : 'AI Prioritize'}
           </Button>
-          <Button variant="outline" size="sm" onClick={() => refetchCards()}>
-            <RefreshCw className="h-4 w-4" />
-          </Button>
-          <Button variant="outline" size="sm" onClick={() => setSettingsOpen(true)}>
-            <Cog className="h-4 w-4" />
-          </Button>
+
+          {/* More Menu */}
+          <div className="relative" ref={moreMenuRef}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setMoreMenuOpen(!moreMenuOpen)}
+              className="relative"
+            >
+              <MoreHorizontal className="h-4 w-4" />
+              {doneCards.length > 0 && (
+                <span className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 text-white text-[10px] rounded-full flex items-center justify-center">
+                  {doneCards.length > 9 ? '9+' : doneCards.length}
+                </span>
+              )}
+            </Button>
+
+            {moreMenuOpen && (
+              <div className="absolute right-0 top-full mt-2 w-48 bg-card border rounded-lg shadow-xl z-50 py-1">
+                <button
+                  onClick={() => { setBoardManagementOpen(true); setMoreMenuOpen(false) }}
+                  className="w-full px-3 py-2 text-sm text-left hover:bg-secondary flex items-center gap-2"
+                >
+                  <Settings className="h-4 w-4" />
+                  Manage Boards
+                </button>
+                <button
+                  onClick={() => { setSettingsOpen(true); setMoreMenuOpen(false) }}
+                  className="w-full px-3 py-2 text-sm text-left hover:bg-secondary flex items-center gap-2"
+                >
+                  <Cog className="h-4 w-4" />
+                  Settings
+                </button>
+                <button
+                  onClick={() => { refetchCards(); setMoreMenuOpen(false) }}
+                  className="w-full px-3 py-2 text-sm text-left hover:bg-secondary flex items-center gap-2"
+                >
+                  <RefreshCw className="h-4 w-4" />
+                  Refresh
+                </button>
+                <div className="border-t my-1" />
+                <button
+                  onClick={() => { setDoneArchiveOpen(true); setMoreMenuOpen(false) }}
+                  className="w-full px-3 py-2 text-sm text-left hover:bg-secondary flex items-center gap-2"
+                >
+                  <CheckCircle2 className="h-4 w-4 text-green-500" />
+                  Done Archive
+                  {doneCards.length > 0 && (
+                    <span className="ml-auto px-1.5 py-0.5 bg-green-500/20 text-green-500 text-xs rounded-full">
+                      {doneCards.length}
+                    </span>
+                  )}
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* Board Tabs */}
-      <div className="mb-4">
+      {/* Row 2: Board Tabs + Daily Briefing */}
+      <div className="flex items-center gap-4 mb-3">
         <BoardSelector boards={boards} selectedBoardId={selectedBoardId} onSelectBoard={setSelectedBoardId} />
-      </div>
 
-      {/* Daily Briefing */}
-      <div className="mb-4">
-
-        <DailyBriefing
-          briefing={briefing}
-          isLoading={briefingLoading}
-          onRefresh={fetchBriefing}
-        />
-      </div>
-
-      {/* Kanban Columns */}
-      <DndContext
-        sensors={sensors}
-        collisionDetection={closestCorners}
-        onDragStart={handleDragStart}
-        onDragOver={handleDragOver}
-        onDragEnd={handleDragEnd}
-      >
-        <div className="flex gap-4 overflow-x-auto pb-4 flex-1">
-          {COLUMNS.map((column) => (
-            <KanbanColumn
-              key={column.status}
-              status={column.status}
-              title={column.title}
-              cards={getCardsByStatus(column.status)}
-              onAddCard={() => handleAddCard(column.status)}
-              onEditCard={handleEditCard}
-              onDeleteCard={handleDeleteCard}
-              onAISuggest={handleAISuggest}
-              showBoardName={isAllBoards}
-              boardsMap={boardsMap}
-            />
-          ))}
+        {/* Compact Daily Briefing */}
+        <div className="ml-auto shrink-0">
+          <DailyBriefing
+            briefing={briefing}
+            isLoading={briefingLoading}
+            onRefresh={fetchBriefing}
+            compact={true}
+          />
         </div>
+      </div>
 
-        <DragOverlay>
-          {activeCard && (
-            <div className="opacity-80">
-              <KanbanCard
-                card={activeCard}
-                onEdit={() => {}}
-                onDelete={() => {}}
-                onAISuggest={() => {}}
+      {/* Main Content - Kanban or Timeline */}
+      {viewMode === 'kanban' ? (
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCorners}
+          onDragStart={handleDragStart}
+          onDragOver={handleDragOver}
+          onDragEnd={handleDragEnd}
+        >
+          <div className="flex gap-4 overflow-x-auto pb-4 flex-1">
+            {COLUMNS.map((column) => (
+              <KanbanColumn
+                key={column.status}
+                status={column.status}
+                title={column.title}
+                cards={getCardsByStatus(column.status)}
+                onAddCard={() => handleAddCard(column.status)}
+                onEditCard={handleEditCard}
+                onDeleteCard={handleDeleteCard}
+                onMarkDone={handleMarkDone}
+                onAISuggest={handleAISuggest}
+                onRunAgent={handleRunAgent}
+                runningAgentCardIds={runningAgentCardIds}
+                showBoardName={isAllBoards}
+                boardsMap={boardsMap}
               />
-            </div>
-          )}
-        </DragOverlay>
-      </DndContext>
+            ))}
+          </div>
+
+          <DragOverlay>
+            {activeCard && (
+              <div className="opacity-80">
+                <KanbanCard
+                  card={activeCard}
+                  onEdit={() => {}}
+                  onDelete={() => {}}
+                  onMarkDone={() => {}}
+                  onAISuggest={() => {}}
+                />
+              </div>
+            )}
+          </DragOverlay>
+        </DndContext>
+      ) : (
+        <div className="flex-1 overflow-y-auto">
+          <TimelineView
+            cards={cards}
+            boards={boards}
+            showBoardName={isAllBoards}
+            onEditCard={handleEditCard}
+            onDeleteCard={handleDeleteCard}
+            onMarkDone={handleMarkDone}
+          />
+        </div>
+      )}
 
       {/* Card Dialog */}
       <CardDialog
@@ -404,6 +627,28 @@ export function KanbanBoard() {
 
       {/* Settings Dialog */}
       <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
+
+      {/* Done Archive */}
+      <DoneArchive
+        open={doneArchiveOpen}
+        onOpenChange={setDoneArchiveOpen}
+        cards={doneCards}
+        boards={boards}
+        onRestoreToTodo={handleRestoreToTodo}
+      />
+      </div>
+
+      {/* Agent Panel - Fixed right side panel */}
+      {agentPanelCard && (
+        <div className="fixed right-0 top-0 bottom-0 w-[400px] z-40">
+          <AgentPanel
+            card={agentPanelCard}
+            session={agentSession}
+            onClose={handleCloseAgentPanel}
+            onCancel={handleCancelAgent}
+          />
+        </div>
+      )}
     </div>
   )
 }

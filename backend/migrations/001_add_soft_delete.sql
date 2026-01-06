@@ -15,3 +15,7 @@ CREATE INDEX IF NOT EXISTS idx_cards_is_active ON cards(is_active);
 UPDATE boards SET is_active = true WHERE is_active IS NULL;
 UPDATE cards SET is_active = true WHERE is_active IS NULL;
 
+
+
+
+

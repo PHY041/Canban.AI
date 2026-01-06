@@ -1,6 +1,6 @@
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { Calendar, Clock, GripVertical, Sparkles, Trash2 } from 'lucide-react'
+import { Calendar, Clock, GripVertical, Sparkles, Trash2, CheckCircle2, Play, Loader2 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -10,7 +10,10 @@ interface KanbanCardProps {
   card: Card
   onEdit: (card: Card) => void
   onDelete: (id: string) => void
+  onMarkDone: (id: string) => void
   onAISuggest: (id: string) => void
+  onRunAgent?: (id: string) => void
+  isAgentRunning?: boolean
   boardName?: string // Show board name in "All" view
   boardColor?: string
 }
@@ -23,7 +26,7 @@ const priorityVariants: Record<number, 'priority1' | 'priority2' | 'priority3' |
   5: 'priority5',
 }
 
-export function KanbanCard({ card, onEdit, onDelete, onAISuggest, boardName, boardColor }: KanbanCardProps) {
+export function KanbanCard({ card, onEdit, onDelete, onMarkDone, onAISuggest, onRunAgent, isAgentRunning, boardName, boardColor }: KanbanCardProps) {
   const {
     attributes,
     listeners,
@@ -138,6 +141,28 @@ export function KanbanCard({ card, onEdit, onDelete, onAISuggest, boardName, boa
       </div>
 
       <div className="flex items-center gap-1 mt-2 pt-2 border-t opacity-0 group-hover:opacity-100 transition-opacity">
+        {onRunAgent && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className={cn(
+              "h-7 px-2 text-xs",
+              isAgentRunning && "text-blue-500 animate-pulse"
+            )}
+            onClick={(e) => {
+              e.stopPropagation()
+              onRunAgent(card.id)
+            }}
+            disabled={isAgentRunning}
+          >
+            {isAgentRunning ? (
+              <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+            ) : (
+              <Play className="h-3 w-3 mr-1" />
+            )}
+            {isAgentRunning ? 'Running...' : 'Agent'}
+          </Button>
+        )}
         <Button
           variant="ghost"
           size="sm"
@@ -149,6 +174,17 @@ export function KanbanCard({ card, onEdit, onDelete, onAISuggest, boardName, boa
         >
           <Sparkles className="h-3 w-3 mr-1" />
           AI Suggest
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-7 px-2 text-xs text-green-500 hover:text-green-600 hover:bg-green-500/10"
+          onClick={(e) => {
+            e.stopPropagation()
+            onMarkDone(card.id)
+          }}
+        >
+          <CheckCircle2 className="h-3 w-3" />
         </Button>
         <Button
           variant="ghost"

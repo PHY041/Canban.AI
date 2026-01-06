@@ -262,25 +262,46 @@ Respond with JSON:
         }
 
 
-async def extract_tasks_from_text(text: str, board_id: str, board_name: str) -> dict: # AI extracts tasks from pasted text
+async def extract_tasks_from_text(text: str, boards: list) -> dict:
+    """AI extracts tasks from pasted text and auto-assigns to best matching boards."""
     now = datetime.now(timezone.utc)
-    prompt = f"""You are a task extraction assistant. Extract actionable tasks from the following text.
+
+    # Build boards context for AI
+    boards_context = "\n".join([
+        f"- ID: {b['id']}, Name: \"{b['name']}\", Description: \"{b.get('description') or 'No description'}\""
+        for b in boards
+    ])
+    board_ids = [b['id'] for b in boards]
+
+    prompt = f"""You are a smart task extraction assistant. Extract actionable tasks from the text and assign each to the MOST APPROPRIATE board.
 
 Current date: {now.strftime("%Y-%m-%d")}
-Board/Context: {board_name}
 
-Text to analyze:
+AVAILABLE BOARDS:
+{boards_context}
+
+TEXT TO ANALYZE:
 \"\"\"
 {text}
 \"\"\"
 
-For each task found, extract:
-1. title: Clear, concise task title (max 100 chars)
-2. description: Additional details if available
-3. deadline: ISO date string if mentioned (interpret "next Tuesday", "Dec 15", etc.), null if not mentioned
-4. priority: 1-5 based on urgency words (urgent=1, important=2, normal=3, low=4, minimal=5)
-5. estimated_hours: Rough estimate based on complexity, null if unclear
-6. tags: Relevant tags extracted from context (e.g., "essay", "reading", "meeting", "research")
+INSTRUCTIONS:
+1. Extract ALL actionable tasks from the text
+2. For EACH task, assign it to the most appropriate board based on:
+   - Board name matching (e.g., "Work" board for work tasks, "Personal" for personal tasks)
+   - Board description relevance
+   - Task content and context
+3. If a task doesn't fit ANY existing board well, set board_id to "NEW_BOARD" and suggest a board name
+
+For each task, extract:
+- title: Clear, concise task title (max 100 chars)
+- description: Additional details if available
+- deadline: ISO date string if mentioned (interpret "next Tuesday", "Dec 15", etc.), null if not mentioned
+- priority: 1-5 based on urgency (urgent=1, important=2, normal=3, low=4, minimal=5)
+- estimated_hours: Rough estimate based on complexity, null if unclear
+- tags: Relevant tags from context
+- board_id: One of [{', '.join([f'"{id}"' for id in board_ids])}] OR "NEW_BOARD" if none fit
+- suggested_board_name: Only if board_id is "NEW_BOARD", suggest a name for the new board
 
 Respond with JSON:
 {{
@@ -291,10 +312,19 @@ Respond with JSON:
       "deadline": "2024-12-15T23:59:00Z or null",
       "priority": 3,
       "estimated_hours": 2.0 or null,
-      "tags": ["tag1", "tag2"]
+      "tags": ["tag1"],
+      "board_id": "existing-board-id or NEW_BOARD",
+      "suggested_board_name": "Only if NEW_BOARD, otherwise null"
     }}
   ],
-  "summary": "Brief summary of what was extracted"
+  "suggested_new_boards": [
+    {{
+      "name": "Suggested Board Name",
+      "reason": "Why this board should be created",
+      "task_indices": [0, 2]
+    }}
+  ],
+  "summary": "Brief summary of what was extracted and how tasks were assigned"
 }}
 
 Extract ALL actionable items. Be thorough but avoid duplicates. Output only valid JSON."""
@@ -304,21 +334,30 @@ Extract ALL actionable items. Be thorough but avoid duplicates. Output only vali
         response = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[
-                {"role": "system", "content": "You are an expert at extracting tasks from unstructured text. Output only valid JSON."},
+                {"role": "system", "content": "You are an expert at extracting and organizing tasks. You intelligently assign tasks to the most appropriate boards. Output only valid JSON."},
                 {"role": "user", "content": prompt}
             ],
             temperature=0.3,
-            max_tokens=2000,
+            max_tokens=3000,
         )
         result_text = response.choices[0].message.content.strip()
         if result_text.startswith("```"):
             result_text = result_text.split("\n", 1)[1]
             result_text = result_text.rsplit("```", 1)[0]
         result = json.loads(result_text)
-        for task in result.get("tasks", []): # Add board_id to each task
-            task["board_id"] = board_id
+
+        # Add status and position to each task
+        for task in result.get("tasks", []):
             task["status"] = "todo"
             task["position"] = 0
+            # Clean up suggested_board_name if board_id is not NEW_BOARD
+            if task.get("board_id") != "NEW_BOARD":
+                task.pop("suggested_board_name", None)
+
+        # Ensure suggested_new_boards exists
+        if "suggested_new_boards" not in result:
+            result["suggested_new_boards"] = []
+
         return result
     except Exception as e:
         raise Exception(f"AI task extraction failed: {str(e)}")

@@ -13,7 +13,10 @@ interface KanbanColumnProps {
   onAddCard: () => void
   onEditCard: (card: Card) => void
   onDeleteCard: (id: string) => void
+  onMarkDone: (id: string) => void
   onAISuggest: (id: string) => void
+  onRunAgent?: (id: string) => void
+  runningAgentCardIds?: Set<string>
   showBoardName?: boolean // Show board name on cards (All view)
   boardsMap?: Record<string, Board> // Map of board_id -> board
 }
@@ -31,7 +34,10 @@ export function KanbanColumn({
   onAddCard,
   onEditCard,
   onDeleteCard,
+  onMarkDone,
   onAISuggest,
+  onRunAgent,
+  runningAgentCardIds,
   showBoardName,
   boardsMap,
 }: KanbanColumnProps) {
@@ -41,7 +47,7 @@ export function KanbanColumn({
     <div
       ref={setNodeRef}
       className={cn(
-        "flex flex-col min-w-[300px] max-w-[300px] bg-secondary/30 rounded-lg border-t-4",
+        "flex flex-col flex-1 min-w-[300px] bg-secondary/30 rounded-lg border-t-4",
         statusColors[status],
         isOver && "bg-secondary/50"
       )}
@@ -68,7 +74,10 @@ export function KanbanColumn({
                 card={card}
                 onEdit={onEditCard}
                 onDelete={onDeleteCard}
+                onMarkDone={onMarkDone}
                 onAISuggest={onAISuggest}
+                onRunAgent={onRunAgent}
+                isAgentRunning={runningAgentCardIds?.has(card.id)}
                 boardName={board?.name}
                 boardColor={board?.color}
               />

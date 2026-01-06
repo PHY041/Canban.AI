@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Plus, Pencil, Trash2, Check, X, RotateCcw, Archive } from 'lucide-react'
+import { Plus, Pencil, Trash2, Check, X, RotateCcw, Archive, FolderGit2 } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -11,8 +11,8 @@ interface BoardManagementProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   boards: Board[]
-  onCreateBoard: (data: { name: string; description?: string; color: string }) => void
-  onUpdateBoard: (id: string, data: { name?: string; description?: string; color?: string }) => void
+  onCreateBoard: (data: { name: string; description?: string; color: string; repo_path?: string }) => void
+  onUpdateBoard: (id: string, data: { name?: string; description?: string; color?: string; repo_path?: string }) => void
   onDeleteBoard: (id: string) => void
   onRestoreBoard: (id: string) => void
 }
@@ -24,10 +24,12 @@ export function BoardManagement({ open, onOpenChange, boards, onCreateBoard, onU
   const [editName, setEditName] = useState('')
   const [editDesc, setEditDesc] = useState('')
   const [editColor, setEditColor] = useState('#6366f1')
+  const [editRepoPath, setEditRepoPath] = useState('')
   const [isAdding, setIsAdding] = useState(false)
   const [newName, setNewName] = useState('')
   const [newDesc, setNewDesc] = useState('')
   const [newColor, setNewColor] = useState('#6366f1')
+  const [newRepoPath, setNewRepoPath] = useState('')
   const [archivedBoards, setArchivedBoards] = useState<Board[]>([])
   const [showArchived, setShowArchived] = useState(false)
 
@@ -42,11 +44,17 @@ export function BoardManagement({ open, onOpenChange, boards, onCreateBoard, onU
     setEditName(board.name)
     setEditDesc(board.description || '')
     setEditColor(board.color)
+    setEditRepoPath(board.repo_path || '')
   }
 
   const saveEdit = () => {
     if (editingId && editName.trim()) {
-      onUpdateBoard(editingId, { name: editName.trim(), description: editDesc.trim() || undefined, color: editColor })
+      onUpdateBoard(editingId, {
+        name: editName.trim(),
+        description: editDesc.trim() || undefined,
+        color: editColor,
+        repo_path: editRepoPath.trim() || undefined
+      })
       setEditingId(null)
     }
   }
@@ -55,10 +63,16 @@ export function BoardManagement({ open, onOpenChange, boards, onCreateBoard, onU
 
   const handleAdd = () => {
     if (newName.trim()) {
-      onCreateBoard({ name: newName.trim(), description: newDesc.trim() || undefined, color: newColor })
+      onCreateBoard({
+        name: newName.trim(),
+        description: newDesc.trim() || undefined,
+        color: newColor,
+        repo_path: newRepoPath.trim() || undefined
+      })
       setNewName('')
       setNewDesc('')
       setNewColor('#6366f1')
+      setNewRepoPath('')
       setIsAdding(false)
     }
   }
@@ -94,6 +108,15 @@ export function BoardManagement({ open, onOpenChange, boards, onCreateBoard, onU
                   <Input value={editName} onChange={(e) => setEditName(e.target.value)} placeholder="Board name" autoFocus />
                   <Textarea value={editDesc} onChange={(e) => setEditDesc(e.target.value)} placeholder="Description (optional)" rows={2} />
                   <div className="flex items-center gap-2">
+                    <FolderGit2 className="h-4 w-4 text-muted-foreground" />
+                    <Input
+                      value={editRepoPath}
+                      onChange={(e) => setEditRepoPath(e.target.value)}
+                      placeholder="Git repo path (e.g., /Users/me/project)"
+                      className="flex-1"
+                    />
+                  </div>
+                  <div className="flex items-center gap-2">
                     <span className="text-sm text-muted-foreground">Color:</span>
                     {COLORS.map((c) => (
                       <button key={c} onClick={() => setEditColor(c)} className={`w-6 h-6 rounded-full border-2 ${editColor === c ? 'border-white' : 'border-transparent'}`} style={{ backgroundColor: c }} />
@@ -111,6 +134,11 @@ export function BoardManagement({ open, onOpenChange, boards, onCreateBoard, onU
                     <div>
                       <h4 className="font-medium text-sm">{board.name}</h4>
                       {board.description && <p className="text-xs text-muted-foreground">{board.description}</p>}
+                      {board.repo_path && (
+                        <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                          <FolderGit2 className="h-3 w-3" />{board.repo_path}
+                        </p>
+                      )}
                     </div>
                   </div>
                   <div className="flex items-center gap-1">
@@ -126,6 +154,15 @@ export function BoardManagement({ open, onOpenChange, boards, onCreateBoard, onU
             <div className="border rounded-lg p-3 bg-card border-primary space-y-3">
               <Input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="New board name" autoFocus />
               <Textarea value={newDesc} onChange={(e) => setNewDesc(e.target.value)} placeholder="Description (optional)" rows={2} />
+              <div className="flex items-center gap-2">
+                <FolderGit2 className="h-4 w-4 text-muted-foreground" />
+                <Input
+                  value={newRepoPath}
+                  onChange={(e) => setNewRepoPath(e.target.value)}
+                  placeholder="Git repo path for AI agent (e.g., /Users/me/project)"
+                  className="flex-1"
+                />
+              </div>
               <div className="flex items-center gap-2">
                 <span className="text-sm text-muted-foreground">Color:</span>
                 {COLORS.map((c) => (

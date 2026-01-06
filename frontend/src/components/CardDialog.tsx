@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { FolderGit2 } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -34,6 +35,7 @@ export function CardDialog({
   const [tags, setTags] = useState('')
   const [status, setStatus] = useState<CardStatus>(defaultStatus)
   const [selectedBoardId, setSelectedBoardId] = useState(boardId)
+  const [repoPath, setRepoPath] = useState('')
 
   useEffect(() => {
     if (card) {
@@ -45,6 +47,7 @@ export function CardDialog({
       setTags(card.tags?.join(', ') || '')
       setStatus(card.status)
       setSelectedBoardId(card.board_id)
+      setRepoPath(card.repo_path || '')
     } else {
       setTitle('')
       setDescription('')
@@ -54,6 +57,7 @@ export function CardDialog({
       setTags('')
       setStatus(defaultStatus)
       setSelectedBoardId(isAllBoards && boards.length > 0 ? boards[0].id : boardId)
+      setRepoPath('')
     }
   }, [card, defaultStatus, open, boardId, isAllBoards, boards])
 
@@ -72,6 +76,7 @@ export function CardDialog({
       tags: tags ? tags.split(',').map((t) => t.trim()).filter(Boolean) : [],
       status,
       board_id: selectedBoardId || boardId,
+      repo_path: repoPath.trim() || undefined,
     })
     onOpenChange(false)
   }
@@ -175,6 +180,21 @@ export function CardDialog({
                 onChange={(e) => setTags(e.target.value)}
                 placeholder="e.g., urgent, research, coding"
               />
+            </div>
+
+            <div>
+              <label className="text-sm font-medium mb-1.5 block flex items-center gap-1.5">
+                <FolderGit2 className="h-4 w-4" />
+                Repo Path (optional)
+              </label>
+              <Input
+                value={repoPath}
+                onChange={(e) => setRepoPath(e.target.value)}
+                placeholder="e.g., /Users/me/project (overrides board default)"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Set a specific repo for this task. If empty, uses board's repo path.
+              </p>
             </div>
           </div>
 

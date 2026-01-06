@@ -54,12 +54,10 @@ async def get_daily_briefing():
 
 @router.post("/extract-tasks", response_model=ExtractTasksResponse)
 async def extract_tasks(request: ExtractTasksRequest):
-    """Extract tasks from pasted text using AI."""
+    """Extract tasks from pasted text using AI - board agnostic, AI assigns boards."""
     try:
-        supabase = get_supabase()
-        board = supabase.table("boards").select("name").eq("id", request.board_id).execute()
-        board_name = board.data[0]["name"] if board.data else "Unknown"
-        result = await extract_tasks_from_text(request.text, request.board_id, board_name)
+        boards_info = [{"id": b.id, "name": b.name, "description": b.description} for b in request.boards]
+        result = await extract_tasks_from_text(request.text, boards_info)
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

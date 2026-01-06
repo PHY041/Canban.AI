@@ -16,6 +16,7 @@ class BoardBase(BaseModel):
     description: Optional[str] = None
     color: Optional[str] = "#6366f1"  # Default indigo
     position: Optional[int] = 0
+    repo_path: Optional[str] = None  # Git repository path for agent context
 
 
 class BoardCreate(BoardBase):
@@ -27,12 +28,14 @@ class BoardUpdate(BaseModel):
     description: Optional[str] = None
     color: Optional[str] = None
     position: Optional[int] = None
+    repo_path: Optional[str] = None
 
 
 class Board(BoardBase):
     id: str
     created_at: datetime
     updated_at: datetime
+    is_active: Optional[bool] = True
 
     class Config:
         from_attributes = True
@@ -51,6 +54,7 @@ class CardBase(BaseModel):
     position: Optional[int] = 0
     tags: Optional[list[str]] = []
     metadata: Optional[dict] = {}
+    repo_path: Optional[str] = None  # Override board's repo_path for this specific task
 
 
 class CardCreate(CardBase):
@@ -70,6 +74,7 @@ class CardUpdate(BaseModel):
     tags: Optional[list[str]] = None
     metadata: Optional[dict] = None
     board_id: Optional[str] = None
+    repo_path: Optional[str] = None
 
 
 class Card(CardBase):
@@ -144,7 +149,7 @@ class AISuggestResponse(BaseModel):
     reasoning: str
 
 
-class ExtractedTask(BaseModel): # Single extracted task from AI
+class ExtractedTask(BaseModel):  # Single extracted task from AI
     title: str
     description: Optional[str] = None
     deadline: Optional[str] = None
@@ -152,18 +157,32 @@ class ExtractedTask(BaseModel): # Single extracted task from AI
     estimated_hours: Optional[float] = None
     tags: list[str] = []
     board_id: Optional[str] = None
+    suggested_board_name: Optional[str] = None  # For NEW_BOARD tasks
     status: str = "todo"
     position: int = 0
 
 
-class ExtractTasksRequest(BaseModel): # Request to extract tasks from text
+class BoardInfo(BaseModel):  # Board info for smart extraction
+    id: str
+    name: str
+    description: Optional[str] = None
+
+
+class ExtractTasksRequest(BaseModel):  # Request to extract tasks from text (board-agnostic)
     text: str
-    board_id: str
+    boards: list[BoardInfo]  # All available boards for AI to choose from
 
 
-class ExtractTasksResponse(BaseModel): # Response with extracted tasks
+class SuggestedBoard(BaseModel):  # Suggested new board from AI
+    name: str
+    reason: str
+    task_indices: list[int]  # Which tasks should go to this board
+
+
+class ExtractTasksResponse(BaseModel):  # Response with extracted tasks
     tasks: list[ExtractedTask]
     summary: str
+    suggested_new_boards: list[SuggestedBoard] = []  # AI-suggested new boards
 
 
 class CreateExtractedTasksRequest(BaseModel): # Request to create extracted tasks

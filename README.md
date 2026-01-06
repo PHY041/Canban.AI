@@ -76,8 +76,36 @@ You need 3 things. Here's exactly where to get them:
 | **AI Priority** | Click "AI Prioritize" → AI analyzes deadlines & complexity → auto-ranks tasks |
 | **Paste & Extract** | Paste emails, syllabi, meeting notes → AI extracts tasks automatically |
 | **Daily Briefing** | AI summary of your priorities and what to focus on |
+| **Claude Code Agent** | Let Claude Code work on your tasks in isolated git worktrees |
 | **Multi-Board** | Separate boards for Work, School, Projects, etc. |
 | **Drag & Drop** | Move cards between To Do / In Progress / Done |
+
+---
+
+## 🤖 Claude Code Agent Integration
+
+CanBan.AI integrates with [Claude Code](https://docs.anthropic.com/en/docs/claude-code) to let AI work on your coding tasks directly.
+
+### Prerequisites
+1. Install Claude Code CLI:
+   ```bash
+   npx @anthropic-ai/claude-code
+   ```
+2. Complete authentication (follow the prompts to log in)
+
+### How It Works
+1. **Set repo path** on your board (Settings → Repository Path)
+2. **Click "Start Agent"** on any card
+3. Claude Code runs in an **isolated git worktree** (won't affect your main branch)
+4. **Watch progress** in real-time via the Agent Panel
+5. **Multi-turn conversation**: Send follow-up messages after Claude completes
+6. **Review & merge** the changes when satisfied
+
+### Agent Features
+- **Git Worktree Isolation**: Each task runs in its own branch/directory
+- **Real-time Streaming**: See Claude's output as it works
+- **Multi-turn Chat**: Continue conversations with `--resume`
+- **Diff Viewer**: Review all changes before merging
 
 ---
 
@@ -131,6 +159,31 @@ pip install pyinstaller
 | `GET /api/ai/daily-briefing` | Daily AI briefing |
 | `GET /api/settings` | Load saved settings |
 | `POST /api/settings` | Save settings to ~/.canban-ai/.env |
+
+### Agent Endpoints
+
+| Endpoint | Description |
+|----------|-------------|
+| `GET /api/agents/status` | Check if Claude Code CLI is available |
+| `POST /api/agents/start` | Start agent for a card |
+| `GET /api/agents/session/:id` | Get session status and output |
+| `POST /api/agents/message` | Send follow-up message (uses --resume) |
+| `GET /api/agents/stream/:id` | SSE stream for real-time output |
+| `POST /api/agents/cancel/:id` | Cancel running agent |
+
+### Git Endpoints
+
+| Endpoint | Description |
+|----------|-------------|
+| `GET /api/git/diff/:cardId` | Get diff for card's worktree |
+| `GET /api/git/worktree/:cardId` | Get worktree info |
+| `POST /api/git/merge` | Merge worktree changes to main |
+
+---
+
+## 🙏 Acknowledgments
+
+The Claude Code agent integration pattern was inspired by [**Vibe Kanban**](https://github.com/dillionverma/vibe-kanban) by [@dillionverma](https://github.com/dillionverma). Their implementation of Claude Code + git worktree isolation was the foundation for our agent executor service.
 
 ---
 

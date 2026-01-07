@@ -194,12 +194,13 @@ async def spawn_claude_code(
         session.status = AgentStatus.RUNNING
         session.started_at = datetime.now(timezone.utc)
 
-        # Spawn the process
+        # Spawn the process with larger buffer limit for handling big outputs
         process = await asyncio.create_subprocess_exec(
             *cmd,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
             cwd=actual_working_dir,
+            limit=10 * 1024 * 1024,  # 10MB buffer limit
         )
         session.process = process
 
@@ -262,12 +263,13 @@ async def send_user_message(session_id: str, message: str) -> bool:
         session.waiting_for_input = False
         session.message_count += 1
 
-        # Spawn resumed process
+        # Spawn resumed process with larger buffer limit
         process = await asyncio.create_subprocess_exec(
             *cmd,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
             cwd=working_dir,
+            limit=10 * 1024 * 1024,  # 10MB buffer limit
         )
         session.process = process
 
@@ -338,52 +340,84 @@ async def _read_process_output(
         return
 
     accumulated_text = ""
+    buffer = ""
+    MAX_LINE_LENGTH = 10 * 1024 * 1024  # 10MB max per line
 
     try:
-        async for line in session.process.stdout:
-            decoded = line.decode("utf-8").strip()
-            if decoded:
-                session.output_lines.append(decoded)
-                if on_output:
-                    on_output(decoded)
+        while True:
+            # Read in chunks to handle large outputs
+            try:
+                chunk = await asyncio.wait_for(
+                    session.process.stdout.read(65536),  # 64KB chunks
+                    timeout=0.5
+                )
+            except asyncio.TimeoutError:
+                # No data available, check if process is still running
+                if session.process.returncode is not None:
+                    break
+                continue
 
-                # Try to parse as JSON to extract session_id and assistant text
-                try:
-                    data = json.loads(decoded)
+            if not chunk:
+                break
 
-                    # Extract Claude session_id from init message for --resume
-                    if data.get("type") == "system" and data.get("subtype") == "init":
-                        claude_sid = data.get("session_id")
-                        if claude_sid:
-                            session.claude_session_id = claude_sid
-                            session.output_lines.append(
-                                f"[kanban] Claude session: {claude_sid[:8]}..."
-                            )
+            buffer += chunk.decode("utf-8", errors="replace")
 
-                    elif data.get("type") == "assistant":
-                        content = data.get("message", {}).get("content", [])
-                        for item in content:
-                            if item.get("type") == "text":
-                                text = item.get("text", "")
-                                accumulated_text += " " + text
+            # Process complete lines
+            while "\n" in buffer:
+                line, buffer = buffer.split("\n", 1)
+                decoded = line.strip()
 
-                                # Check if agent is asking a question
-                                if _is_question(text):
-                                    session.waiting_for_input = True
-                                    session.status = AgentStatus.WAITING_FOR_INPUT
-                                    session.last_question = _extract_question(text)
+                # Skip extremely long lines to prevent memory issues
+                if len(decoded) > MAX_LINE_LENGTH:
+                    session.output_lines.append("[kanban] Skipped oversized output line")
+                    continue
 
-                    # Reset waiting state when agent uses a tool (it's working)
-                    elif data.get("type") == "tool_use" or data.get("tool"):
-                        session.waiting_for_input = False
-                        session.status = AgentStatus.RUNNING
+                if decoded:
+                    session.output_lines.append(decoded)
+                    if on_output:
+                        on_output(decoded)
 
-                    # Check for result/completion
-                    elif data.get("type") == "result":
-                        session.waiting_for_input = False
+                    # Try to parse as JSON to extract session_id and assistant text
+                    try:
+                        data = json.loads(decoded)
 
-                except json.JSONDecodeError:
-                    pass  # Not JSON, just raw text
+                        # Extract Claude session_id from init message for --resume
+                        if data.get("type") == "system" and data.get("subtype") == "init":
+                            claude_sid = data.get("session_id")
+                            if claude_sid:
+                                session.claude_session_id = claude_sid
+                                session.output_lines.append(
+                                    f"[kanban] Claude session: {claude_sid[:8]}..."
+                                )
+
+                        elif data.get("type") == "assistant":
+                            content = data.get("message", {}).get("content", [])
+                            for item in content:
+                                if item.get("type") == "text":
+                                    text = item.get("text", "")
+                                    accumulated_text += " " + text
+
+                                    # Check if agent is asking a question
+                                    if _is_question(text):
+                                        session.waiting_for_input = True
+                                        session.status = AgentStatus.WAITING_FOR_INPUT
+                                        session.last_question = _extract_question(text)
+
+                        # Reset waiting state when agent uses a tool (it's working)
+                        elif data.get("type") == "tool_use" or data.get("tool"):
+                            session.waiting_for_input = False
+                            session.status = AgentStatus.RUNNING
+
+                        # Check for result/completion
+                        elif data.get("type") == "result":
+                            session.waiting_for_input = False
+
+                    except json.JSONDecodeError:
+                        pass  # Not JSON, just raw text
+
+        # Process any remaining buffer content
+        if buffer.strip():
+            session.output_lines.append(buffer.strip())
 
         # Wait for process to complete
         await session.process.wait()
